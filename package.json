@@ -15,5 +15,8 @@
     "etc"
   ],
   "author": "Moid Alam",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
 }
