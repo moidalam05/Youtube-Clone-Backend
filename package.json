@@ -1,0 +1,17 @@
+{
+  "name": "youtube-like-app",
+  "version": "1.0.0",
+  "description": "A full fladge youtube like backend app using node and express",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "Nodejs",
+    "Expressjs",
+    "MongoDB",
+    "etc"
+  ],
+  "author": "Moid Alam",
+  "license": "ISC"
+}
