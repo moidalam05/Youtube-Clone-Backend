@@ -10,12 +10,6 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-console.log(
-  process.env.CLOUDINARY_CLOUD_NAME,
-  process.env.CLOUDINARY_API_KEY,
-  process.env.CLOUDINARY_API_SECRET
-);
-
 export const uploadOnCloudinary = async (filePath) => {
   try {
     if (!filePath) return null;
@@ -25,7 +19,7 @@ export const uploadOnCloudinary = async (filePath) => {
     });
 
     // file uploaded successfully
-    console.log("file uploaded to cloudinary", result.url);
+    fs.unlinkSync(filePath); // delete local file after upload
     return result;
   } catch (error) {
     // delete file if upload fails
