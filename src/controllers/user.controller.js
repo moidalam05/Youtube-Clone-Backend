@@ -211,10 +211,151 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 });
 
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!oldPassword || !newPassword) {
+    throw new ErrorHandler("Old and new passwords are required", 400);
+  }
+
+  const user = await User.findById(req.user?._id);
+  if (!user) {
+    throw new ErrorHandler("User not found", 404);
+  }
+
+  const isPasswordValid = await user.isPasswordCorrect(oldPassword);
+  if (!isPasswordValid) {
+    throw new ErrorHandler("Old password is incorrect", 401);
+  }
+  if (newPassword.length < 6) {
+    throw new ErrorHandler(
+      "New password must be at least 6 characters long",
+      400
+    );
+  }
+
+  user.password = newPassword;
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ResponseHandler(200, {}, "Password changed successfully"));
+});
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user?._id).select(
+    "-password -refreshToken"
+  );
+  if (!user) {
+    throw new ErrorHandler("User not found", 404);
+  }
+  return res
+    .status(200)
+    .json(new ResponseHandler(200, user, "Current user fetched successfully"));
+});
+
+const updateUserDetails = asyncHandler(async (req, res) => {
+  const { fullName, email } = req.body;
+  if (!fullName || !email) {
+    throw new ErrorHandler("Full name and email are required", 400);
+  }
+
+  if (!email.includes("@") || !email.includes(".")) {
+    throw new ErrorHandler("Invalid email format", 400);
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        fullName,
+        email,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password -refreshToken");
+  if (!user) {
+    throw new ErrorHandler("User not found", 404);
+  }
+
+  return res
+    .status(200)
+    .json(new ResponseHandler(200, user, "User details updated successfully"));
+});
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
+  if (!avatarLocalPath) {
+    throw new ErrorHandler("Avatar file is required", 400);
+  }
+
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatar.url) {
+    throw new ErrorHandler("Failed to upload avatar image", 500);
+  }
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar: avatar?.url,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password -refreshToken");
+  if (!user) {
+    throw new ErrorHandler("User not found", 404);
+  }
+
+  return res
+    .status(200)
+    .json(new ResponseHandler(200, user, "User avatar updated successfully"));
+});
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path;
+  if (!coverImageLocalPath) {
+    throw new ErrorHandler("Cover image file is required", 400);
+  }
+
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  if (!coverImage.url) {
+    throw new ErrorHandler("Failed to upload cover image", 500);
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: coverImage?.url,
+      },
+    },
+    {
+      new: true,
+    }
+  ).select("-password -refreshToken");
+  if (!user) {
+    throw new ErrorHandler("User not found", 404);
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ResponseHandler(200, user, "User cover image updated successfully")
+    );
+});
+
 export {
   registerUser,
   loginUser,
   logoutUser,
+  changeCurrentPassword,
+  getCurrentUser,
+  updateUserDetails,
+  updateUserAvatar,
+  updateUserCoverImage,
   generateAccessAndRefreshTokens,
   refreshAccessToken,
 };
