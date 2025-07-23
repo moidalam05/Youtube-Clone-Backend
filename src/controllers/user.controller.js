@@ -3,6 +3,7 @@ import { ErrorHandler } from "../utils/errorHandler.js";
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../services/cloudinary.js";
 import { ResponseHandler } from "../utils/responseHandler.js";
+import jwt from "jsonwebtoken";
 
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -76,7 +77,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
   const { username, email, password } = req.body;
-  if (!username || !email) {
+  if (!username && !email) {
     throw new ErrorHandler("Username or email are required", 400);
   }
 
@@ -163,4 +164,57 @@ const logoutUser = asyncHandler(async (req, res) => {
     .json(new ResponseHandler(200, {}, "User logged out successfully"));
 });
 
-export { registerUser, loginUser, logoutUser, generateAccessAndRefreshTokens };
+const refreshAccessToken = asyncHandler(async (req, res) => {
+  const incomingRefreshToken =
+    req.cookies.refreshToken || req.body.refreshToken;
+  if (!incomingRefreshToken) {
+    throw new ErrorHandler("Refresh token is required!", 401);
+  }
+
+  try {
+    const decodedToken = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET
+    );
+
+    const user = await User.findById(decodedToken?._id);
+    if (!user) {
+      throw new ErrorHandler("User not found! Invalid refresh token", 404);
+    }
+
+    if (user?.refreshToken !== incomingRefreshToken) {
+      throw new ErrorHandler("Refresh token is expired or used", 401);
+    }
+
+    const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
+      user._id
+    );
+
+    const options = {
+      httpOnly: true,
+      secure: true,
+    };
+
+    return res
+      .status(200)
+      .cookie("refreshToken", refreshToken, options)
+      .cookie("accessToken", accessToken, options)
+      .json(
+        new ResponseHandler(
+          200,
+          { accessToken, refreshToken },
+          "Tokens refreshed successfully"
+        )
+      );
+  } catch (error) {
+    throw new ErrorHandler(error?.message || "Invalid refresh token", 401);
+  }
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  generateAccessAndRefreshTokens,
+  refreshAccessToken,
+};
