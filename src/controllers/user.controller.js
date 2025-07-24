@@ -347,6 +347,77 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     );
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+  if (!username?.trim()) {
+    throw new ErrorHandler("Username is required", 400);
+  }
+
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "channel",
+        as: "subscribers",
+      },
+    },
+    {
+      $lookup: {
+        from: "subscriptions",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "subscribedTo",
+      },
+    },
+    {
+      $addFields: {
+        subscribersCount: { $size: "$subscribers" },
+        subscribedToCount: { $size: "$subscribedTo" },
+        isSubsribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullName: 1,
+        username: 1,
+        avatar: 1,
+        coverImage: 1,
+        subscribersCount: 1,
+        subscribedToCount: 1,
+        isSubsribed: 1,
+        email: 1,
+        createdAt: 1,
+      },
+    },
+  ]);
+
+  if (!channel || channel?.length === 0) {
+    throw new ErrorHandler("Channel not found", 404);
+  }
+
+  return res
+    .status(200)
+    .json(
+      new ResponseHandler(
+        200,
+        channel[0],
+        "User channel profile fetched successfully"
+      )
+    );
+});
+
 export {
   registerUser,
   loginUser,
@@ -356,6 +427,7 @@ export {
   updateUserDetails,
   updateUserAvatar,
   updateUserCoverImage,
+  getUserChannelProfile,
   generateAccessAndRefreshTokens,
   refreshAccessToken,
 };
